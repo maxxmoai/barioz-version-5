@@ -73,3 +73,17 @@ Sécurité : mots de passe hachés (scrypt), session HttpOnly, droits revérifi�
 - **Plan des pistes** intégré sur /pistes (clic = agrandir), boutons PDF conservés. L'image pointe encore vers l'ancien hébergement : avant de couper l'ancien site, déposez `plan-pistes.jpg`/PDF dans ce dépôt et changez les URL dans Infos du site.
 - **Carte OpenStreetMap** intégrée sur /acces (repère au col du Barioz, coordonnées modifiables).
 - **Compte « Visiteur (démo)»** : voit tous les écrans comme un admin, e-mails masqués, aucune écriture possible (refus serveur 403). Créez-le dans Équipe & droits > Comptes avec le rôle « Visiteur (démo) ».
+
+
+## Nouveautés v6 (refonte visuelle et technique)
+
+- **Direction artistique** : photo pleine page à l'accueil, « tableau d'affichage » des conditions (neige, pistes ouvertes, dernier damage) en bas du premier écran, tuiles de tailles différentes, événements en lignes à filets, motif « traces de damage » (deux filets parallèles). Thème clair/sombre automatique.
+- **Polices libres (OFL), auto-hébergées** dans `src/assets/fonts/` : Bitter (titres) et DM Sans (texte), 62 Ko au total. Pour en changer : remplacer les `.woff` et ajuster `--serif` / `--sans` dans `site.css`.
+- **Images** : chaque photo existe en `.jpg` (repli) et en `.webp` de plusieurs largeurs (`nom-480.webp`…). Si vous remplacez une photo, régénérez les `.webp` (ou supprimez-les : le site utilisera alors le `.jpg` seul). Le plan des pistes passe de 1,5 Mo à 180–880 Ko selon l'écran.
+- **Réseau faible** : `/api/public` limité à 6 s puis dernière version connue (localStorage), service worker (`src/sw.js`) qui garde pages, styles, polices et dernières conditions en cache. Désactivé automatiquement sous Playwright (`navigator.webdriver`).
+- **Application installable** : `manifest.webmanifest` + icônes (le dameur peut « ajouter à l'écran d'accueil »).
+- **SEO** : titre d'accueil avec le nom du lieu, JSON-LD `SportsActivityLocation` (généré au build depuis `lib/seed.js`) et `Event` (généré côté navigateur depuis l'API), `og:image:alt`.
+- **CSP stricte** : plus aucun `style=""` ni `'unsafe-inline'`. Le serveur local envoie la même CSP que Vercel (`vercel.json`), donc les tests la vérifient.
+- **Cache Vercel** : CSS/JS versionnés (`?v=empreinte`) et polices en `immutable` 1 an ; images 1 jour.
+- **Espace équipe** : bug « null » corrigé, boutons ≥ 52 px, thème sombre (travail de nuit), champs non autorisés masqués, remarques repliées, onglets accessibles (flèches), bandeau « pas de connexion », bouton Enregistrer toujours visible, liste des pistes avant les mesures.
+- Le README ci-dessus mentionnant l'ancien hébergement du plan est obsolète : plan et PDF sont maintenant dans `src/assets`.

@@ -9,6 +9,7 @@ function h(tag, attrs = {}, ...kids) {
     if (v == null || v === false) continue;
     if (k === 'class') el.className = v;
     else if (k === 'text') el.textContent = v;
+    else if (k === 'style') { for (const d of String(v).split(';')) { const i = d.indexOf(':'); if (i > 0) el.style.setProperty(d.slice(0, i).trim(), d.slice(i + 1).trim()); } }
     else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
     else if (k === 'value') el.value = v;
     else el.setAttribute(k, v === true ? '' : v);
@@ -171,7 +172,7 @@ function todayView() {
     h('label', { class: 'f', style: 'margin-top:10px;max-width:240px' }, 'Type de message', h('select', { name: 'messageLevel', ...stateOf('conditions.message') },
       h('option', { value: 'info', text: 'Information', selected: c.messageLevel !== 'alert' }), h('option', { value: 'alert', text: 'Alerte (rouge)', selected: c.messageLevel === 'alert' })))),
   h('button', { class: 'btn big', type: 'submit', text: 'Enregistrer les conditions' }));
-  wrap.append(f);
+  const formCard = f;
 
   // pistes : l'écran change immédiatement, l'envoi se fait en arrière-plan (retour arrière + message si échec)
   const trailRow = (t) => {
@@ -208,12 +209,17 @@ function todayView() {
     return h('div', { class: 'trail-row' },
       h('div', { class: 'name' }, `${t.num}. ${t.name}`, sub),
       h('div', { class: 'acts' }, sw, gr),
-      can('trails.status') ? h('input', { class: 'note', type: 'text', maxlength: 160, placeholder: 'Remarque (ex. passage délicat, verglas…)', value: t.note || '',
-        onchange: guard(async (e) => { await enqueue(() => api('PATCH', `/trails/${t.id}`, { note: e.target.value })); t.note = e.target.value; toast('Remarque enregistrée'); }) }) : null);
+      can('trails.status') ? (() => {
+        const sum = h('summary', { text: t.note ? `Remarque : ${t.note}` : 'Ajouter une remarque' });
+        const inp = h('input', { class: 'note', type: 'text', maxlength: 160, 'aria-label': `Remarque pour ${t.name}`, placeholder: 'Ex. passage délicat, verglas…', value: t.note || '',
+          onchange: guard(async (e) => { await enqueue(() => api('PATCH', `/trails/${t.id}`, { note: e.target.value })); t.note = e.target.value; sum.textContent = t.note ? `Remarque : ${t.note}` : 'Ajouter une remarque'; toast('Remarque enregistrée'); }) });
+        return h('details', { class: 'note-d', }, sum, inp);
+      })() : null);
   };
   const rows = (kind) => pub.trails.filter((t) => t.kind === kind).map(trailRow);
   wrap.append(h('div', { class: 'card' }, h('h2', { text: 'Pistes de ski' }), ...rows('ski')),
     h('div', { class: 'card' }, h('h2', { text: 'Itinéraires raquette' }), ...rows('raquette')));
+  wrap.append(formCard);
   return wrap;
 }
 
@@ -413,18 +419,36 @@ function lockAll(root) {
 async function render() {
   const tabs = TABS.filter((t) => t.show());
   if (!tabs.find((t) => t.id === tab)) tab = tabs[0]?.id;
-  const bar = h('div', { class: 'tabs', role: 'tablist' }, ...tabs.map((t) => h('button', { role: 'tab', 'aria-selected': String(t.id === tab), text: t.label, onclick: () => { tab = t.id; render(); } })));
-  const content = h('div', { id: 'tab-content' });
-  app.replaceChildren(
-    h('div', { class: 'adm-top' },
-      h('a', { class: 'brand', href: '/' }, h('span', { class: 'brand__text' }, h('strong', { text: 'Espace Nordique du Barioz' }), h('span', { text: 'Espace équipe' }))),
-      h('div', { class: 'adm-top__who' }, h('b', { text: me.user?.name }), `${me.user?.roleLabel} · `, h('a', { href: '#', text: 'Se déconnecter', onclick: guard(async (e) => { e.preventDefault(); await api('POST', '/logout'); me = null; await boot(); }) }))),
-    readOnly() ? h('p', { class: 'notice demo', role: 'status', text: 'Mode démonstration : vous voyez l’espace équipe comme un administrateur, mais rien ne peut être modifié.' }) : null,
-    tabs.length ? bar : h('p', { class: 'notice', text: 'Votre rôle n’a encore aucune autorisation. Demandez à un administrateur.' }), content);
+  document.body.classList.toggle('ro', readOnly());
+  const bar = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Sections de l’espace équipe' }, ...tabs.map((t) => h('button', { role: 'tab', id: `tab-${t.id}`, 'aria-controls': 'tab-content', 'aria-selected': String(t.id === tab), tabindex: t.id === tab ? '0' : '-1', text: t.label, onclick: () => { tab = t.id; render(); } })));
+  bar.addEventListener('keydown', (e) => {
+    const keys = { ArrowRight: 1, ArrowLeft: -1, Home: 'first', End: 'last' };
+    if (!(e.key in keys)) return;
+    e.preventDefault();
+    const i = tabs.findIndex((t) => t.id === tab);
+    const j = keys[e.key] === 'first' ? 0 : keys[e.key] === 'last' ? tabs.length - 1 : (i + keys[e.key] + tabs.length) % tabs.length;
+    tab = tabs[j].id; render().then(() => document.getElementById(`tab-${tab}`)?.focus());
+  });
+  const content = h('div', { id: 'tab-content', role: 'tabpanel', 'aria-labelledby': tab ? `tab-${tab}` : null });
+  const top = h('div', { class: 'adm-top' },
+    h('a', { class: 'brand', href: '/' }, h('span', { class: 'brand__text' }, h('strong', { text: 'Espace Nordique du Barioz' }), h('span', { text: 'Espace équipe' }))),
+    h('div', { class: 'adm-top__who' }, h('b', { text: me.user?.name }), `${me.user?.roleLabel} · `, h('a', { href: '#', text: 'Se déconnecter', onclick: guard(async (e) => { e.preventDefault(); await api('POST', '/logout'); me = null; await boot(); }) })));
+  const demo = readOnly() ? h('p', { class: 'notice demo', role: 'status', text: 'Mode démonstration : vous voyez l’espace équipe comme un administrateur, mais rien ne peut être modifié.' }) : null;
+  const nav = !tabs.length ? h('p', { class: 'notice', text: 'Votre rôle n’a encore aucune autorisation. Demandez à un administrateur.' }) : tabs.length > 1 ? bar : null;
+  app.replaceChildren(...[top, demo, nav, content].filter(Boolean));
   const t = tabs.find((x) => x.id === tab);
   if (t) { try { content.replaceChildren(await t.view()); } catch (e) { content.replaceChildren(h('p', { class: 'notice alert', text: e.message })); } }
   if (readOnly()) lockAll(content);
 }
+
+// Hors ligne : on le dit tout de suite (en station, le réseau tombe souvent) ; les boutons gardent leur retour arrière en cas d'échec.
+function netBanner() {
+  const on = () => { document.querySelector('.offline')?.remove(); if (!navigator.onLine) document.body.append(h('div', { class: 'offline', role: 'status', text: 'Pas de connexion : vos modifications ne partiront pas tant que le réseau n’est pas revenu.' })); };
+  addEventListener('online', () => { on(); toast('Connexion rétablie'); });
+  addEventListener('offline', on);
+  on();
+}
+netBanner();
 
 async function refresh() {
   pub = await loadPub();

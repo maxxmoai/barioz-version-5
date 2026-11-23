@@ -7,11 +7,17 @@ import { handle, seedDemoUsers } from './lib/api.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), 'dist');
 const port = Number(process.env.PORT || 3000);
+// mêmes en-têtes de sécurité (CSP stricte comprise) qu'en production : ce qui casse sur Vercel casse aussi ici
+const SECURITY = {};
+try {
+  const cfg = JSON.parse(await fs.readFile(path.join(path.dirname(root), 'vercel.json'), 'utf8'));
+  for (const h of cfg.headers?.[0]?.headers || []) SECURITY[h.key] = h.value;
+} catch { /* facultatif */ }
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8',
-  '.xml': 'application/xml', '.pdf': 'application/pdf',
+  '.xml': 'application/xml', '.pdf': 'application/pdf', '.woff': 'font/woff', '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json',
 };
 
 async function readBody(req) {
@@ -30,7 +36,7 @@ async function serveStatic(urlPath, res) {
     try {
       const st = await fs.stat(file);
       if (st.isFile()) {
-        res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream' });
+        res.writeHead(200, { ...SECURITY, 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream' });
         res.end(await fs.readFile(file));
         return;
       }
@@ -38,7 +44,7 @@ async function serveStatic(urlPath, res) {
   }
   try {
     const nf = await fs.readFile(path.join(root, '404.html'));
-    res.writeHead(404, { 'Content-Type': TYPES['.html'] }).end(nf);
+    res.writeHead(404, { ...SECURITY, 'Content-Type': TYPES['.html'] }).end(nf);
   } catch {
     res.writeHead(404).end('Introuvable');
   }

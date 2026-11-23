@@ -1,17 +1,17 @@
 <!--meta:{"title":"Neige & état des pistes","desc":"Hauteur de neige, dernier damage, pistes de ski et itinéraires raquette ouverts à l'Espace Nordique du Barioz.","path":"/conditions","nav":"conditions"}-->
 <main id="main">
   <section class="page-head">
-    <div class="wrap">
+    <div class="page-head__bg" aria-hidden="true">{{media:pistes}}</div>
+    <div class="wrap page-head__in">
       <p class="kicker">En direct du foyer</p>
       <h1>Neige &amp; état des pistes</h1>
       <p class="lead" data-groomed>Chargement…</p>
     </div>
   </section>
-
-  <section class="section" data-conditions style="padding-top:36px">
+  <section class="section section--page" data-conditions>
     <div class="wrap">
       <p class="notice" data-message hidden></p>
-      <p class="notice alert" data-fallback hidden>Les conditions ne peuvent pas être affichées pour le moment. Appelez le foyer : <a href="tel:0476710647">04 76 71 06 47</a>.</p>
+      <p class="notice alert" data-fallback hidden>Les conditions ne peuvent pas être affichées pour le moment. Appelez le foyer : <a href="tel:+33476710647">04 76 71 06 47</a>.</p>
 
       <div class="panel panel--cam">
         <h2>Webcam du Crêt du Poulet</h2>
@@ -24,7 +24,7 @@
             <h2><span class="dot" data-season-dot></span> <span data-season>Conditions</span></h2>
             <div class="stats4" data-cond-stats></div>
             <div class="chips" data-snow-states></div>
-            <p style="margin:16px 0 0"><strong>Risque d’avalanche :</strong> <span data-risk></span></p>
+            <p class="mt-s mb-0"><strong>Risque d’avalanche :</strong> <span data-risk></span></p>
             <p class="legend" data-updated></p>
           </div>
 

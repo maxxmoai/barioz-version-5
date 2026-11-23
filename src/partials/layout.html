@@ -2,12 +2,14 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{{head-title}}</title>
 <meta name="description" content="{{desc}}">
 <meta name="robots" content="{{robots}}">
-<meta name="theme-color" content="#1d3b36">
+<meta name="theme-color" content="#0c1917">
+<meta name="color-scheme" content="light dark">
 <link rel="canonical" href="{{canonical}}">
+<link rel="manifest" href="/manifest.webmanifest">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="fr_FR">
 <meta property="og:site_name" content="Espace Nordique du Barioz">
@@ -17,9 +19,14 @@
 <meta property="og:image" content="{{site}}/assets/img/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Pistes de ski de fond et refuge du Crêt du Poulet sous la neige, Espace Nordique du Barioz">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
+<link rel="preload" href="/assets/fonts/bitter-var.woff" as="font" type="font/woff" crossorigin>
+<link rel="preload" href="/assets/fonts/dmsans-var.woff" as="font" type="font/woff" crossorigin>
 <link rel="stylesheet" href="/assets/css/site.css">
+{{jsonld}}
 </head>
 <body class="{{body-class}}">
 <a class="skip" href="#main">Aller au contenu</a>

@@ -9,6 +9,7 @@ function h(tag, attrs = {}, ...kids) {
     if (v == null || v === false) continue;
     if (k === 'class') el.className = v;
     else if (k === 'text') el.textContent = v;
+    else if (k === 'style') { for (const d of String(v).split(';')) { const i = d.indexOf(':'); if (i > 0) el.style.setProperty(d.slice(0, i).trim(), d.slice(i + 1).trim()); } }
     else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
     else el.setAttribute(k, v === true ? '' : v);
   }
@@ -29,7 +30,7 @@ function when(iso) {
 }
 const n = (v, unit = '') => (v == null ? '—' : `${String(v).replace('.', ',')}${unit}`);
 
-// ----- menu mobile -----
+// ----- menu mobile, menu « Le Barioz », en-tête qui se pose au défilement -----
 const btn = $('[data-menu-btn]');
 const nav = $('[data-nav-root]');
 if (btn && nav) {
@@ -37,9 +38,28 @@ if (btn && nav) {
     const open = nav.classList.toggle('open');
     btn.setAttribute('aria-expanded', String(open));
   });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && nav.classList.contains('open')) { nav.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); btn.focus(); }
+}
+const moreBtn = $('[data-more-btn]');
+const morePanel = $('[data-more-panel]');
+const closeMore = () => { morePanel?.classList.remove('open'); moreBtn?.setAttribute('aria-expanded', 'false'); };
+if (moreBtn && morePanel) {
+  moreBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = morePanel.classList.toggle('open');
+    moreBtn.setAttribute('aria-expanded', String(open));
   });
+  document.addEventListener('click', (e) => { if (!morePanel.contains(e.target)) closeMore(); });
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (morePanel?.classList.contains('open')) { closeMore(); moreBtn.focus(); }
+  else if (nav?.classList.contains('open')) { nav.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); btn.focus(); }
+});
+const header = $('[data-header]');
+if (header) {
+  const onScroll = () => header.classList.toggle('is-scrolled', window.scrollY > 8);
+  onScroll();
+  addEventListener('scroll', onScroll, { passive: true });
 }
 
 // ----- vidéo (chargée au clic, sans cookie tiers avant) -----
@@ -52,15 +72,26 @@ $$('[data-video]').forEach((box) => {
   });
 });
 
-// ----- données -----
+// ----- données : 6 s maximum, puis dernière version connue (réseau faible en station) -----
+const CACHE_KEY = 'bz:public:v1';
+const readCache = () => { try { return JSON.parse(localStorage.getItem(CACHE_KEY)); } catch { return null; } };
 let data;
+let staleAt = null;
 try {
-  const r = await fetch('/api/public');
+  const r = await fetch('/api/public', { signal: AbortSignal.timeout(6000) });
   if (!r.ok) throw new Error(r.status);
   data = await r.json();
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), data })); } catch { /* stockage indisponible : sans importance */ }
 } catch {
-  $$('[data-fallback]').forEach((el) => { el.hidden = false; });
+  const c = readCache();
+  if (c?.data) { data = c.data; staleAt = c.at; }
+  else $$('[data-fallback]').forEach((el) => { el.hidden = false; });
 }
+if (!data) {
+  const bar = $('[data-status-bar]');
+  if (bar) { $('[data-status-dot]', bar).className = 'dot'; $('[data-status-text]', bar).textContent = 'Conditions indisponibles pour le moment. Appelez le foyer.'; }
+}
+if ('serviceWorker' in navigator && !navigator.webdriver) navigator.serviceWorker.register('/sw.js').catch(() => {});
 
 // ----- aperçu agrandi (image ou carte) -----
 function lightbox(src, alt) {
@@ -89,23 +120,31 @@ function mountWebcam(root, s) {
   const refreshBtn = h('button', { type: 'button', class: 'btn btn--ghost sm', text: 'Actualiser' });
   const load = () => { img.src = src(); };
   img.addEventListener('load', () => {
-    miss.hidden = true; frame.hidden = false;
+    miss.hidden = true; frame.hidden = false; live.hidden = false;
     stamp.textContent = `Image actualisée à ${fmtTime(new Date())}`;
   });
-  img.addEventListener('error', () => { frame.hidden = true; miss.hidden = false; stamp.textContent = ''; });
+  img.addEventListener('error', () => { frame.hidden = true; miss.hidden = false; live.hidden = true; stamp.textContent = ''; });
   frame.addEventListener('click', () => lightbox(img.currentSrc || img.src, img.alt));
   refreshBtn.addEventListener('click', load);
   root.classList.add('webcam');
   root.replaceChildren(frame, miss, h('div', { class: 'webcam__bar' }, live, stamp, h('span', { class: 'webcam__acts' }, refreshBtn, link)));
-  load();
-  setInterval(() => { if (!document.hidden) load(); }, 60000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+  // on ne charge (et ne rafraîchit) la webcam que si elle est à l'écran : moins de données sur réseau lent
+  let visible = false; let started = false;
+  const tick = () => { if (visible && !document.hidden) load(); };
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver((entries) => { visible = entries.some((x) => x.isIntersecting); if (visible && !started) { started = true; load(); } else if (visible) tick(); }, { rootMargin: '200px' }).observe(root);
+  } else { visible = true; started = true; load(); }
+  setInterval(tick, 60000);
+  document.addEventListener('visibilitychange', tick);
 }
 
 // ----- plan des pistes (image) : clic = agrandir ; PDF conservé en boutons -----
 function mountPlan(root, s) {
   if (!s.planPistesImage) { root.hidden = true; return; }
-  const img = h('img', { src: s.planPistesImage, alt: 'Plan des pistes de ski de fond et des itinéraires raquette du Barioz', loading: 'lazy', decoding: 'async' });
+  const local = /^\/assets\/img\/photos\/plan-pistes\.jpe?g$/.test(s.planPistesImage);
+  const img = h('img', { src: s.planPistesImage, alt: 'Plan des pistes de ski de fond et des itinéraires raquette du Barioz', loading: 'lazy', decoding: 'async',
+    srcset: local ? '/assets/img/photos/plan-pistes-800.webp 800w, /assets/img/photos/plan-pistes-1400.webp 1400w, /assets/img/photos/plan-pistes-2000.webp 2000w' : null,
+    sizes: local ? '(min-width: 1240px) 1160px, 100vw' : null });
   const zoom = h('button', { type: 'button', class: 'plan__zoom', 'aria-label': 'Agrandir le plan des pistes' }, img);
   zoom.addEventListener('click', () => lightbox(img.currentSrc || img.src, img.alt));
   img.addEventListener('error', () => { root.replaceChildren(h('p', { class: 'muted', text: 'L’aperçu du plan est indisponible : utilisez le bouton de téléchargement (PDF) ci-dessus.' })); });
@@ -160,19 +199,19 @@ if (data) {
   // bandeau haut de page
   const bar = $('[data-status-bar]');
   if (bar) {
-    bar.hidden = false;
     $('[data-status-dot]', bar).className = `dot ${c.season}`;
     const bits = [seasonLabel];
     if (c.season !== 'closed') {
       bits.push(`${openSki}/${ski.length} pistes de ski ouvertes`);
       if (c.lastGroomedAt) bits.push(`damage ${when(c.lastGroomedAt)}`);
     }
+    if (staleAt) bits.push(`hors ligne : données du ${when(new Date(staleAt).toISOString())}`);
     $('[data-status-text]', bar).textContent = bits.join(' · ');
   }
 
   // message d'information
   $$('[data-message]').forEach((el) => {
-    if (c.message) { el.textContent = c.message; el.hidden = false; el.classList.toggle('alert', c.messageLevel === 'alert'); }
+    if (c.message && !(el.hasAttribute('data-skip-closed') && c.season === 'closed')) { el.textContent = c.message; el.hidden = false; el.classList.toggle('alert', c.messageLevel === 'alert'); }
     else el.hidden = true;
   });
 
@@ -182,13 +221,14 @@ if (data) {
     $('[data-card-title]', card).textContent = seasonLabel;
     $('[data-card-dot]', card).className = `dot ${c.season}`;
     const grid = $('[data-card-grid]', card);
-    grid.replaceChildren(
+    if (c.season === 'closed') grid.replaceChildren();
+    else grid.replaceChildren(
       stat(c.snowFoyer, 'cm', 'Neige au foyer (1450 m)', c.sources?.snowFoyer),
       stat(c.snowRefuge, 'cm', 'Neige au refuge (1700 m)', c.sources?.snowRefuge),
-      stat(c.season === 'closed' ? null : openSki, `/${ski.length}`, 'Pistes de ski ouvertes'),
-      stat(c.season === 'closed' ? null : openRaq, `/${raq.length}`, 'Itinéraires raquette ouverts'),
+      stat(openSki, `/${ski.length}`, 'Pistes de ski ouvertes'),
+      stat(openRaq, `/${raq.length}`, 'Itinéraires raquette ouverts'),
     );
-    $('[data-card-foot]', card).textContent = c.lastGroomedAt ? `Dernier damage : ${when(c.lastGroomedAt)}.` : c.updatedAt ? `Mis à jour ${when(c.updatedAt)}.` : 'Les informations seront publiées à l’ouverture.';
+    $('[data-card-foot]', card).textContent = c.season === 'closed' ? (c.message || 'Les informations seront publiées à l’ouverture.') : c.lastGroomedAt ? `Dernier damage : ${when(c.lastGroomedAt)}.` : c.updatedAt ? `Mis à jour ${when(c.updatedAt)}.` : 'Les informations seront publiées à l’ouverture.';
   }
 
   // page conditions
@@ -270,4 +310,19 @@ if (data) {
         h('span', { class: 'event__tag', text: KIND[e.kind] }));
     }));
   });
+
+  // balisage schema.org des événements (lisible par les moteurs de recherche)
+  if ($('[data-events]') && events.length) {
+    const ld = {
+      '@context': 'https://schema.org',
+      '@graph': events.map((e) => ({
+        '@type': 'Event', name: e.title, startDate: e.date, ...(e.dateEnd ? { endDate: e.dateEnd } : {}),
+        ...(e.subtitle || e.description ? { description: [e.subtitle, e.description].filter(Boolean).join(' · ') } : {}),
+        eventStatus: 'https://schema.org/EventScheduled', eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+        location: { '@type': 'Place', name: 'Espace Nordique du Barioz', address: { '@type': 'PostalAddress', postalCode: '38830', addressLocality: 'Crêts en Belledonne', addressCountry: 'FR' } },
+        ...(e.link ? { url: e.link } : {}),
+      })),
+    };
+    document.head.append(h('script', { type: 'application/ld+json', text: JSON.stringify(ld) }));
+  }
 }

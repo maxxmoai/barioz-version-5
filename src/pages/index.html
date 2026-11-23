@@ -1,59 +1,59 @@
-<!--meta:{"title":"Ski de fond, raquettes et refuge d'altitude à Crêts en Belledonne","desc":"Espace Nordique du Barioz : pistes de ski de fond, itinéraires raquette, foyer, location, refuge du Crêt du Poulet et soirées musique, en Isère.","path":"/","nav":"home"}-->
+<!--meta:{"title": "Espace Nordique du Barioz : ski de fond, raquettes et refuge à Crêts en Belledonne", "desc": "Espace Nordique du Barioz : pistes de ski de fond, itinéraires raquette, foyer, location, refuge du Crêt du Poulet et soirées musique, en Isère.", "path": "/", "nav": "home"}-->
 <main id="main">
   <section class="hero">
     <div class="hero__bg" aria-hidden="true">{{media:hero}}</div>
     <div class="wrap hero__in">
-      <div>
-        <p class="kicker">Crêts en Belledonne · Isère</p>
-        <h1>Ski de fond, raquettes et refuge d’altitude.</h1>
-        <p class="lead">Un foyer de fond à 1&nbsp;450&nbsp;m, des pistes tracées chaque nuit et un refuge à 1&nbsp;700&nbsp;m tenu par les bénévoles de l’association.</p>
-        <div class="btn-row">
-          <a class="btn btn--ember" href="/conditions">État des pistes aujourd’hui</a>
-          <a class="btn btn--ghost" href="/foyer">Tarifs &amp; location</a>
-        </div>
+      <p class="kicker">Crêts en Belledonne · Isère</p>
+      <h1>Ski de fond, raquettes et refuge d’altitude.</h1>
+      <p class="lead">Un foyer de fond à 1&nbsp;450&nbsp;m, des pistes tracées chaque nuit et un refuge à 1&nbsp;700&nbsp;m tenu par les bénévoles de l’association.</p>
+      <div class="btn-row">
+        <a class="btn btn--ember" href="/conditions">État des pistes aujourd’hui</a>
+        <a class="btn btn--ghost" href="/foyer">Tarifs &amp; location</a>
+        <a class="btn btn--ghost" data-bind-href="reservationUrl" href="https://barioz.epok.network/" rel="noopener">Réserver au refuge</a>
       </div>
-      <aside class="cond-card" data-cond-card aria-label="Conditions du jour">
-        <h2><span class="dot" data-card-dot></span><span data-card-title>Conditions du jour</span></h2>
-        <div class="cond-card__grid" data-card-grid></div>
-        <p class="cond-card__foot" data-card-foot></p>
-      </aside>
     </div>
+    <aside class="board" data-cond-card aria-label="Conditions du jour">
+      <div class="wrap board__in">
+        <h2><span class="dot" data-card-dot></span><span data-card-title>Conditions du jour</span></h2>
+        <div class="board__grid" data-card-grid></div>
+        <p class="board__foot" data-card-foot></p>
+      </div>
+    </aside>
   </section>
 
-  <div class="wrap" style="padding-top:28px"><p class="notice" data-message hidden></p></div>
-
-  <section class="section" style="padding-top:28px">
+  <section class="section">
     <div class="wrap">
+      <p class="notice" data-message data-skip-closed hidden></p>
       <div class="section__head"><h2>Le plateau en direct</h2><a href="/conditions">Neige &amp; état des pistes →</a></div>
       <div data-webcam></div>
     </div>
   </section>
 
-  <section class="section" style="padding-top:8px">
+  <section class="section section--tint">
     <div class="wrap">
       <div class="section__head"><h2>Préparer sa journée</h2></div>
-      <div class="tiles">
-        <a class="tile" href="/conditions"><div class="tile__media">{{media:pistes}}</div><div class="tile__body"><h3>Neige &amp; état des pistes</h3><p>Hauteur de neige, damage, pistes et itinéraires ouverts.</p></div></a>
-        <a class="tile" href="/foyer"><div class="tile__media">{{media:foyer}}</div><div class="tile__body"><h3>Foyer, forfaits &amp; location</h3><p>Redevances, location de skis et raquettes, boissons chaudes.</p></div></a>
-        <a class="tile" href="/refuge"><div class="tile__media">{{media:refuge}}</div><div class="tile__body"><h3>Refuge du Crêt du Poulet</h3><p>Repas, dortoir de 23 places, réservation en ligne.</p></div></a>
-        <a class="tile" href="/soirees"><div class="tile__media">{{media:soirees}}</div><div class="tile__body"><h3>Soirées musique</h3><p>Raquettes de nuit, repas et concert au refuge.</p></div></a>
+      <div class="bento">
+        <a class="tile" href="/conditions"><div class="tile__media">{{media:pistes|Pistes de ski de fond}}</div><div class="tile__body"><h3>Neige &amp; état des pistes</h3><p>Hauteur de neige, damage, pistes et itinéraires ouverts.</p></div></a>
+        <a class="tile" href="/foyer"><div class="tile__media">{{media:foyer|Le foyer de fond du Barioz}}</div><div class="tile__body"><h3>Foyer, forfaits &amp; location</h3><p>Redevances, location de skis et raquettes, boissons chaudes.</p></div></a>
+        <a class="tile" href="/refuge"><div class="tile__media">{{media:refuge|Le refuge du Crêt du Poulet}}</div><div class="tile__body"><h3>Refuge du Crêt du Poulet</h3><p>Repas, dortoir de 23 places, réservation en ligne.</p></div></a>
+        <a class="tile" href="/soirees"><div class="tile__media">{{media:soirees|Fenêtre éclairée du refuge en soirée}}</div><div class="tile__body"><h3>Soirées musique</h3><p>Raquettes de nuit, repas et concert au refuge.</p></div></a>
       </div>
     </div>
   </section>
 
-  <section class="section section--tint">
-    <div class="wrap split">
+  <section class="section on-dark">
+    <div class="wrap info">
       <div>
         <p class="kicker">Au foyer</p>
         <h2>Ouvert tous les jours, de 9h à 17h</h2>
         <p class="lead">Forfaits, location de matériel, cours particuliers sur demande, boissons chaudes et fraîches, petite restauration.</p>
-        <ul class="plain" style="margin:0 0 18px">
-          <li><strong>Renseignements :</strong> <a href="tel:" data-bind-tel><span data-bind="phone">04 76 71 06 47</span></a></li>
-          <li><span class="muted" data-bind="hours">Tous les jours de 9h à 17h</span></li>
-        </ul>
         <div class="btn-row"><a class="btn" href="/foyer">Voir les tarifs</a><a class="btn btn--ghost" href="/acces">Comment venir</a></div>
       </div>
-      <div class="frame">{{media:foyer|Le foyer de fond du Barioz}}</div>
+      <div>
+        <p class="info__list"><strong>Renseignements</strong></p>
+        <a class="info__tel" href="tel:+33476710647" data-bind-tel><span data-bind="phone">04 76 71 06 47</span></a>
+        <p class="info__list"><span data-bind="hours">Tous les jours de 9h à 17h</span><span data-bind="address">Espace Nordique du Barioz, Mairie, 38830 Crêts en Belledonne</span></p>
+      </div>
     </div>
   </section>
 
@@ -66,12 +66,16 @@
 
   <section class="section section--tint">
     <div class="wrap split">
-      <div class="frame">{{media:scolaires|Accueil des scolaires}}</div>
       <div>
         <p class="kicker">Écoles</p>
         <h2>Depuis plus de 40 ans, le foyer accueille les écoles</h2>
         <p class="lead">Ski alternatif, skating, raquettes et biathlon laser, encadrés par des moniteurs diplômés, en demi-journée ou en journée.</p>
         <div class="btn-row"><a class="btn" href="/scolaires">Accueil des scolaires</a><a class="btn btn--ghost" href="/association">L’association</a></div>
+      </div>
+      <div class="nums nums--col">
+        <div><b>150</b><span>enfants accueillis avec le matériel du foyer</span></div>
+        <div><b>~20</b><span>écoles reçues chaque saison</span></div>
+        <div><b>40+</b><span>années d’accueil des scolaires</span></div>
       </div>
     </div>
   </section>

@@ -119,15 +119,16 @@ async function loginAs(who, viewport = { width: 390, height: 844 }) {
   await page.fill('input[name=email]', `${who}@barioz.local`);
   await page.fill('input[name=password]', 'barioz-demo-2026');
   await page.click('button[type=submit]');
-  await page.waitForSelector('.tabs');
+  await page.waitForSelector('#tab-content');
   return page;
 }
 {
   const page = await loginAs('dameur');
   await page.screenshot({ path: path.join(shots, 'mobile-admin-dameur.png'), fullPage: true });
-  const tabs = await page.locator('.tabs button').allInnerTexts();
-  assert.deepEqual(tabs, ['Aujourd’hui']);
-  ok('dameur : voit seulement l’onglet « Aujourd’hui »');
+  assert.equal(await page.locator('.tabs').count(), 0, 'une seule section : pas de barre d’onglets');
+  assert.ok(!(await page.locator('text=/^null$/').count()), 'aucun « null » affiché');
+  assert.ok(await page.locator('.trail-row .switch').first().evaluate((el) => el.getBoundingClientRect().height >= 50), 'zones tactiles ≥ 50 px');
+  ok('dameur : une seule section, pas de « null », grandes zones tactiles');
   assert.ok(await page.locator('select[name=avalancheRisk]').isDisabled());
   assert.ok(!(await page.locator('input[name=airTemp]').isDisabled()));
   ok('dameur : risque d’avalanche verrouillé, mesures modifiables');

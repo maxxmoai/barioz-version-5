@@ -3,6 +3,8 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
+import { seedSettings } from './lib/seed.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const src = path.join(root, 'src');
@@ -51,15 +53,42 @@ ${extras[map[kind] || 'none']}
 </svg>`;
 }
 
-// Cadrage de chaque photo (les photos sont en portrait : on garde la partie utile quand le cadre est large)
-const FOCUS = { hero: '50% 40%', foyer: '50% 68%', refuge: '50% 58%', pistes: '50% 72%', soirees: '50% 45%', association: '50% 50%' };
+// Cadrage de chaque photo (classes .fp-* dans site.css : aucun style en ligne, CSP stricte)
+const FOCUS_WORDS = { top: 'fp-top', mid: 'fp-mid', low: 'fp-low' };
+const SIZES = { hero: '100vw', pistes: '(min-width: 760px) 58vw, 100vw', foyer: '(min-width: 760px) 42vw, 100vw', refuge: '(min-width: 760px) 42vw, 100vw', soirees: '(min-width: 760px) 58vw, 100vw', association: '100vw' };
 
-async function media(name, alt = '') {
+function jpegSize(buf) {
+  let i = 2;
+  while (i < buf.length) {
+    if (buf[i] !== 0xff) { i++; continue; }
+    const m = buf[i + 1];
+    if (m >= 0xc0 && m <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(m)) return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
+    i += 2 + buf.readUInt16BE(i + 2);
+  }
+  return null;
+}
+async function webpSet(name) {
+  const dir = path.join(src, 'assets/img/photos');
+  const out = [];
+  for (const f of await fs.readdir(dir)) {
+    const m = f.match(new RegExp(`^${name}-(\\d+)\\.webp$`));
+    if (m) out.push([Number(m[1]), f]);
+  }
+  return out.sort((x, y) => x[0] - y[0]).map(([w, f]) => `/assets/img/photos/${f} ${w}w`).join(', ');
+}
+
+async function media(name, spec = '') {
+  const [alt = '', focus = ''] = spec.split('|');
   for (const ext of ['jpg', 'jpeg', 'webp', 'png', 'avif']) {
     const f = path.join(src, 'assets/img/photos', `${name}.${ext}`);
     if (await exists(f)) {
-      const eager = name === 'hero' ? 'fetchpriority="high"' : 'loading="lazy"';
-      return `<img class="photo" src="/assets/img/photos/${name}.${ext}" alt="${alt}" ${eager} decoding="async" style="object-position:${FOCUS[name] || '50% 50%'}">`;
+      const eager = name === 'hero' && !focus ? 'fetchpriority="high"' : 'loading="lazy"';
+      const cls = `photo ${FOCUS_WORDS[focus] || `fp-${name}`}`;
+      const dim = ext.startsWith('jp') ? jpegSize(await fs.readFile(f)) : null;
+      const wh = dim ? ` width="${dim.w}" height="${dim.h}"` : '';
+      const set = ext.startsWith('jp') ? await webpSet(name) : '';
+      const img = `<img class="${cls}" src="/assets/img/photos/${name}.${ext}" alt="${alt}"${wh} ${eager} decoding="async">`;
+      return set ? `<picture><source type="image/webp" srcset="${set}" sizes="${SIZES[name] || '100vw'}">${img}</picture>` : img;
     }
   }
   return scene(name);
@@ -68,13 +97,46 @@ async function media(name, alt = '') {
 async function optimg(name, alt = '') {
   for (const ext of ['jpg', 'jpeg', 'webp', 'png', 'avif']) {
     const f = path.join(src, 'assets/img/photos', `${name}.${ext}`);
-    if (await exists(f)) return `<img class="plan-img" src="/assets/img/photos/${name}.${ext}" alt="${alt}" loading="lazy" decoding="async">`;
+    if (await exists(f)) {
+      const set = ext.startsWith('jp') ? await webpSet(name) : '';
+      const img = `<img class="plan-img" src="/assets/img/photos/${name}.${ext}" alt="${alt}" loading="lazy" decoding="async">`;
+      return set ? `<picture><source type="image/webp" srcset="${set}" sizes="(min-width: 860px) 560px, 100vw">${img}</picture>` : img;
+    }
   }
   return '';
 }
 
 const pages = [];
+const SET = seedSettings();
+const telE164 = '+33' + SET.phone.replace(/\D/g, '').slice(1);
+function jsonLd(meta) {
+  if (meta.noindex || meta.path !== '/') return '';
+  const hrs = SET.hours.match(/tous les jours de (\d+)h(?:(\d+))? à (\d+)h(?:(\d+))?/i);
+  const t = (h, m) => `${String(h).padStart(2, '0')}:${m || '00'}`;
+  const data = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'SportsActivityLocation', '@id': `${SITE}/#foyer`, name: 'Espace Nordique du Barioz', url: SITE, telephone: telE164,
+        image: `${SITE}/assets/img/og.jpg`, description: meta.desc,
+        address: { '@type': 'PostalAddress', streetAddress: 'Mairie', postalCode: '38830', addressLocality: 'Crêts en Belledonne', addressCountry: 'FR' },
+        geo: { '@type': 'GeoCoordinates', latitude: Number(SET.lat), longitude: Number(SET.lng) },
+        ...(hrs ? { openingHours: `Mo-Su ${t(hrs[1], hrs[2])}-${t(hrs[3], hrs[4])}` } : {}),
+      },
+      { '@type': 'WebSite', '@id': `${SITE}/#site`, url: SITE, name: 'Espace Nordique du Barioz', inLanguage: 'fr-FR' },
+    ],
+  };
+  return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`;
+}
+let VER = 'dev';
+const withVersions = (html) => html.replace(/(href|src)="(\/assets\/(?:css|js)\/[\w.-]+)"/g, (_, a, u) => `${a}="${u}?v=${VER}"`);
+
 async function build() {
+  {
+    const h = crypto.createHash('sha1');
+    for (const f of ['assets/css/site.css', 'assets/css/admin.css', 'assets/js/site.js', 'assets/js/admin.js', 'sw.js']) h.update(await read(path.join(src, f)).catch(() => ''));
+    VER = h.digest('hex').slice(0, 8);
+  }
   await fs.rm(dist, { recursive: true, force: true });
   await fs.mkdir(dist, { recursive: true });
   await copyDir(path.join(src, 'assets'), path.join(dist, 'assets'));
@@ -99,10 +161,11 @@ async function build() {
       .replace('{{header}}', meta.bare ? '' : partials.header)
       .replace('{{footer}}', meta.bare ? '' : partials.footer)
       .replace('{{body-class}}', meta.bodyClass || '')
+      .replace('{{jsonld}}', jsonLd(meta))
       .replace('{{content}}', html)
       .replace('{{scripts}}', meta.scripts || '<script type="module" src="/assets/js/site.js"></script>');
 
-    let out = page.replace(new RegExp(`data-nav="${meta.nav}"`, 'g'), `data-nav="${meta.nav}" aria-current="page"`);
+    let out = withVersions(page).replace(new RegExp(`data-nav="${meta.nav}"`, 'g'), `data-nav="${meta.nav}" aria-current="page"`);
     const tokens = [...out.matchAll(/\{\{media:([\w-]+)(?:\|([^}]*))?\}\}/g)];
     for (const t of tokens) out = out.replace(t[0], await media(t[1], t[2] || ''));
     for (const t of [...out.matchAll(/\{\{optimg:([\w-]+)(?:\|([^}]*))?\}\}/g)]) out = out.replace(t[0], await optimg(t[1], t[2] || ''));
@@ -123,9 +186,20 @@ async function build() {
     .replace('{{footer}}', partials.footer)
     .replace('{{body-class}}', '')
     .replace('{{scripts}}', '<script type="module" src="/assets/js/site.js"></script>')
+    .replace('{{jsonld}}', '')
     .replace('{{content}}', '<main id="main" class="wrap section"><h1>Page introuvable</h1><p>Cette page n’existe pas ou a été déplacée.</p><p><a class="btn" href="/">Retour à l’accueil</a></p></main>');
-  await fs.writeFile(path.join(dist, '404.html'), notFound);
+  await fs.writeFile(path.join(dist, '404.html'), withVersions(notFound));
 
+  await fs.writeFile(path.join(dist, 'sw.js'), (await read(path.join(src, 'sw.js'))).replaceAll('__V__', VER));
+  await fs.writeFile(path.join(dist, 'manifest.webmanifest'), JSON.stringify({
+    name: 'Espace Nordique du Barioz', short_name: 'Barioz', lang: 'fr', start_url: '/', scope: '/', display: 'standalone',
+    background_color: '#0c1917', theme_color: '#0c1917',
+    icons: [
+      { src: '/assets/img/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { src: '/assets/img/icon-512.png', sizes: '512x512', type: 'image/png' },
+      { src: '/assets/img/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    ],
+  }));
   const urls = pages.sort().map((p) => `<url><loc>${SITE}${p === '/' ? '' : p}</loc></url>`).join('');
   await fs.writeFile(path.join(dist, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`);
   await fs.writeFile(path.join(dist, 'robots.txt'), `User-agent: *\nDisallow: /admin\nDisallow: /api/\nSitemap: ${SITE}/sitemap.xml\n`);
